@@ -1,0 +1,5 @@
+{
+  "name": "personal Fin 1",
+  "description": "A mobile-first expense and income tracker with multi-user support, offline storage, and Gemini-powered financial insights.",
+  "requestFramePermissions": []
+}
