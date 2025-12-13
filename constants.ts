@@ -25,6 +25,23 @@ export const DEFAULT_CATEGORIES: GroupedCategory[] = [
     ]
   },
   {
+    group: "Investor Payments",
+    items: [
+      "Investor Funds",
+      "Interest Payment",
+      "Principal Return"
+    ]
+  },
+  {
+    group: "Investments",
+    items: [
+      "SIP (Regular)",
+      "SIP (Gold)",
+      "Mutual Funds",
+      "Stocks"
+    ]
+  },
+  {
     group: "Personal",
     items: [
       // Income Sources
@@ -32,11 +49,6 @@ export const DEFAULT_CATEGORIES: GroupedCategory[] = [
       "Business Profit",
       "Rental Income",
       "Interest",
-      
-      // Investments
-      "SIP (Regular)",
-      "SIP (Gold)",
-      "Investor Funds",
       
       // Insurance
       "Mediclaim",

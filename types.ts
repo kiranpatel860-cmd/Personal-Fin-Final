@@ -4,6 +4,16 @@ export enum TransactionType {
   EXPENSE = 'EXPENSE'
 }
 
+export interface InvestorDetails {
+  investorName: string;
+  roi: number; // Rate of Interest in %
+  returnPeriod: 'Monthly' | 'Quarterly' | 'Half-Yearly' | 'Yearly' | 'Maturity';
+  durationMonths: number;
+  maturityDate: string; // ISO String for reminder
+  purpose?: string;
+  periodicInterestAmount?: number;
+}
+
 export interface Transaction {
   id: string;
   userId: string;
@@ -14,6 +24,7 @@ export interface Transaction {
   date: string; // ISO string
   note?: string;
   timestamp: number;
+  investorDetails?: InvestorDetails;
 }
 
 export interface User {
@@ -28,7 +39,9 @@ export enum AppView {
   ADD_TRANSACTION = 'ADD_TRANSACTION',
   REPORTS = 'REPORTS',
   AI_ASSISTANT = 'AI_ASSISTANT',
-  SETTINGS = 'SETTINGS'
+  SETTINGS = 'SETTINGS',
+  MATURITIES = 'MATURITIES',
+  INVESTOR_DASHBOARD = 'INVESTOR_DASHBOARD'
 }
 
 export interface GroupedCategory {

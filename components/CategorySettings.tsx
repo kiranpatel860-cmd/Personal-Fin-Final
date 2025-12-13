@@ -27,6 +27,15 @@ export const CategorySettings: React.FC<Props> = ({ onBack }) => {
     const val = newItemValues[groupIdx]?.trim();
     if (!val) return;
 
+    // Check for duplicates (case-insensitive) within the target group
+    const group = categories[groupIdx];
+    const exists = group.items.some(item => item.toLowerCase() === val.toLowerCase());
+
+    if (exists) {
+      alert(`"${val}" already exists in ${group.group}.`);
+      return;
+    }
+
     const newCats = [...categories];
     newCats[groupIdx].items.push(val);
     saveChanges(newCats);
@@ -47,8 +56,22 @@ export const CategorySettings: React.FC<Props> = ({ onBack }) => {
 
   const saveEdit = () => {
     if (!editingItem) return;
+    const val = editingItem.value.trim();
+    if (!val) return;
+
+    // Check for duplicates (excluding current item)
+    const group = categories[editingItem.groupIdx];
+    const exists = group.items.some((item, idx) => 
+      idx !== editingItem.itemIdx && item.toLowerCase() === val.toLowerCase()
+    );
+
+    if (exists) {
+      alert(`"${val}" already exists in ${group.group}.`);
+      return;
+    }
+
     const newCats = [...categories];
-    newCats[editingItem.groupIdx].items[editingItem.itemIdx] = editingItem.value;
+    newCats[editingItem.groupIdx].items[editingItem.itemIdx] = val;
     saveChanges(newCats);
     setEditingItem(null);
   };
@@ -115,6 +138,9 @@ export const CategorySettings: React.FC<Props> = ({ onBack }) => {
                         value={editingItem.value}
                         onChange={(e) => setEditingItem({ ...editingItem, value: e.target.value })}
                         className="flex-1 p-1 bg-white border border-blue-300 rounded text-sm outline-none"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') saveEdit();
+                        }}
                       />
                       <button onClick={saveEdit} className="text-emerald-600 p-1 hover:bg-emerald-50 rounded"><Save className="w-4 h-4" /></button>
                       <button onClick={() => setEditingItem(null)} className="text-slate-400 p-1 hover:bg-slate-100 rounded"><X className="w-4 h-4" /></button>

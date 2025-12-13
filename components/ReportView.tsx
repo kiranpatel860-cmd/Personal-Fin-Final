@@ -2,7 +2,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Transaction, TransactionType, GroupedCategory } from '../types';
 import { getCategories } from '../services/storageService';
-import { ArrowLeft, TrendingUp, TrendingDown, BookOpen, Layers, ChevronRight, Calendar, Download, FileSpreadsheet, FileText } from 'lucide-react';
+import { ArrowLeft, TrendingUp, TrendingDown, BookOpen, Layers, ChevronRight, Calendar, Download, FileSpreadsheet, FileText, User, Percent, Repeat, Clock, Target, Coins } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -122,7 +122,13 @@ export const ReportView: React.FC<Props> = ({ transactions, onBack }) => {
       "Category": t.category,
       "Amount": t.amount,
       "Payment Mode": t.paymentMode || '',
-      "Note": t.note || ''
+      "Note": t.note || '',
+      "Investor Name": t.investorDetails?.investorName || '',
+      "Purpose": t.investorDetails?.purpose || '',
+      "ROI (%)": t.investorDetails?.roi || '',
+      "Duration (Months)": t.investorDetails?.durationMonths || '',
+      "Maturity Date": t.investorDetails?.maturityDate || '',
+      "Periodic Interest": t.investorDetails?.periodicInterestAmount || ''
     }));
     const wsLedger = XLSX.utils.json_to_sheet(ledgerData);
     XLSX.utils.book_append_sheet(wb, wsLedger, "Transactions");
@@ -252,6 +258,45 @@ export const ReportView: React.FC<Props> = ({ transactions, onBack }) => {
                     {Math.abs(t.amount).toLocaleString('en-IN')}
                   </span>
                 </div>
+                
+                {/* Investor Details Block */}
+                {t.investorDetails && (
+                    <div className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-100 text-xs text-blue-800 grid grid-cols-2 gap-2">
+                        <div className="col-span-2 flex items-center gap-1.5 font-bold border-b border-blue-100 pb-1 mb-1">
+                            <User className="w-3.5 h-3.5" />
+                            {t.investorDetails.investorName}
+                        </div>
+                        {t.investorDetails.purpose && (
+                          <div className="col-span-2 flex items-center gap-1.5 text-blue-700 mb-1">
+                             <Target className="w-3.5 h-3.5" />
+                             Purpose: {t.investorDetails.purpose}
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1.5">
+                            <Percent className="w-3.5 h-3.5 opacity-60" />
+                            {t.investorDetails.roi}% ROI
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <Repeat className="w-3.5 h-3.5 opacity-60" />
+                            {t.investorDetails.returnPeriod}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5 opacity-60" />
+                            {t.investorDetails.durationMonths} Months
+                        </div>
+                        {t.investorDetails.periodicInterestAmount && (
+                           <div className="col-span-2 flex items-center gap-1.5 font-semibold text-amber-700 bg-amber-50 p-1.5 rounded border border-amber-100 mt-1">
+                               <Coins className="w-3.5 h-3.5" />
+                               Pay: {formatCurrency(t.investorDetails.periodicInterestAmount)} / {t.investorDetails.returnPeriod}
+                           </div>
+                        )}
+                        <div className="col-span-2 flex items-center gap-1.5 font-semibold text-blue-900 bg-blue-100/50 p-1 rounded mt-1">
+                            <span>Maturity:</span>
+                            {new Date(t.investorDetails.maturityDate).toLocaleDateString()}
+                        </div>
+                    </div>
+                )}
+
                 {t.paymentMode && (
                   <div className="self-start px-2 py-1 rounded bg-slate-100 text-[10px] font-bold text-slate-500 uppercase tracking-wide">
                     {t.paymentMode}
