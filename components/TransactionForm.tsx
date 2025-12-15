@@ -65,6 +65,16 @@ export const TransactionForm: React.FC<Props> = ({ type, initialData, onSave, on
 
   const isInvestorFund = category === 'Investor Funds';
 
+  // Get existing investors for autocomplete suggestions
+  const existingInvestors = useMemo(() => {
+    const investorGroup = categories.find(c => c.group === "Investor Payments");
+    if (!investorGroup) return [];
+    
+    // Filter out system categories to leave only Names
+    const systemCategories = ["Investor Funds", "Interest Payment", "Principal Return"];
+    return investorGroup.items.filter(item => !systemCategories.includes(item));
+  }, [categories]);
+
   // Robust Maturity Date Calculation
   const maturityDate = useMemo(() => {
     if (!date || !duration) return '';
@@ -210,10 +220,17 @@ export const TransactionForm: React.FC<Props> = ({ type, initialData, onSave, on
                 type="text" 
                 value={investorName} 
                 onChange={e => setInvestorName(e.target.value)}
+                list="investor-suggestions"
                 className="w-full p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none bg-slate-50 focus:bg-white transition-colors"
                 placeholder="e.g. John Doe"
                 required={isInvestorFund}
+                autoComplete="off"
               />
+              <datalist id="investor-suggestions">
+                {existingInvestors.map(name => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
               <p className="text-[10px] text-emerald-600 pl-1">
                 * This name will be added to Expense categories for future interest payments.
               </p>
