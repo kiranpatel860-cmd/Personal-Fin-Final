@@ -2,7 +2,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Transaction, TransactionType, GroupedCategory } from '../types';
 import { getCategories } from '../services/storageService';
-import { ArrowLeft, TrendingUp, TrendingDown, BookOpen, Layers, ChevronRight, Calendar, Download, FileSpreadsheet, FileText, User, Percent, Repeat, Clock, Target, Coins } from 'lucide-react';
+import { ArrowLeft, TrendingUp, TrendingDown, BookOpen, Layers, ChevronRight, Calendar, Download, FileSpreadsheet, FileText, User, Percent, Repeat, Clock, Target, Coins, Pencil } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -10,6 +10,7 @@ import autoTable from 'jspdf-autotable';
 interface Props {
   transactions: Transaction[];
   onBack: () => void;
+  onEditTransaction: (transaction: Transaction) => void;
 }
 
 interface CategoryStat {
@@ -21,7 +22,7 @@ interface CategoryStat {
 
 type Tab = 'SUMMARY' | 'CATEGORIES';
 
-export const ReportView: React.FC<Props> = ({ transactions, onBack }) => {
+export const ReportView: React.FC<Props> = ({ transactions, onBack, onEditTransaction }) => {
   const [activeTab, setActiveTab] = useState<Tab>('SUMMARY');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [categories, setCategories] = useState<GroupedCategory[]>([]);
@@ -243,7 +244,7 @@ export const ReportView: React.FC<Props> = ({ transactions, onBack }) => {
           
           <div className="space-y-3 pb-20">
             {ledgerTransactions.map(t => (
-              <div key={t.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col gap-2">
+              <div key={t.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col gap-2 group relative">
                 <div className="flex justify-between items-start">
                   <div>
                     <span className="text-xs font-bold text-slate-400 block mb-0.5">
@@ -258,6 +259,14 @@ export const ReportView: React.FC<Props> = ({ transactions, onBack }) => {
                     {Math.abs(t.amount).toLocaleString('en-IN')}
                   </span>
                 </div>
+                
+                {/* Edit Button */}
+                <button 
+                   onClick={() => onEditTransaction(t)}
+                   className="absolute top-4 right-2 p-1.5 rounded-full bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors opacity-100 md:opacity-0 group-hover:opacity-100"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
                 
                 {/* Investor Details Block */}
                 {t.investorDetails && (

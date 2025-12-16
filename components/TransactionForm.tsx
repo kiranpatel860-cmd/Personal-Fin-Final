@@ -1,18 +1,20 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { PAYMENT_MODES } from '../constants';
-import { getCategories, ensureInvestorCategory } from '../services/storageService';
-import { TransactionType, GroupedCategory, InvestorDetails } from '../types';
+import { getCategories, ensureInvestorCategory, getTransactions } from '../services/storageService';
+import { TransactionType, GroupedCategory, InvestorDetails, Transaction } from '../types';
 import { Button } from './Button';
-import { ArrowLeft, Calendar, FileText, IndianRupee, User, Percent, Repeat, Clock, CalendarClock, HelpCircle, Target, Calculator, BellRing } from 'lucide-react';
+import { ArrowLeft, Calendar, FileText, IndianRupee, User, Percent, Repeat, Clock, CalendarClock, HelpCircle, Target, Calculator, BellRing, Link } from 'lucide-react';
 
 interface Props {
+  userId: string;
   type: TransactionType;
   initialData?: {
     category?: string;
     note?: string;
     amount?: number;
   };
+  editingTransaction?: Transaction; // Added for edit mode
   onSave: (data: { 
     amount: number; 
     category: string; 
@@ -20,6 +22,7 @@ interface Props {
     date: string; 
     note: string;
     investorDetails?: InvestorDetails;
+    linkedTransactionId?: string;
   }) => void;
   onCancel: () => void;
 }
@@ -35,13 +38,17 @@ const InfoTooltip = ({ text }: { text: string }) => (
   </div>
 );
 
-export const TransactionForm: React.FC<Props> = ({ type, initialData, onSave, onCancel }) => {
+export const TransactionForm: React.FC<Props> = ({ userId, type, initialData, editingTransaction, onSave, onCancel }) => {
   const [amount, setAmount] = useState(initialData?.amount?.toString() || '');
   const [category, setCategory] = useState(initialData?.category || '');
   const [paymentMode, setPaymentMode] = useState('UPI');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [note, setNote] = useState(initialData?.note || '');
   const [categories, setCategories] = useState<GroupedCategory[]>([]);
+  
+  // Linking state
+  const [availableLoans, setAvailableLoans] = useState<Transaction[]>([]);
+  const [linkedTransactionId, setLinkedTransactionId] = useState<string>('');
 
   // Investor specific fields
   const [investorName, setInvestorName] = useState('');
@@ -54,14 +61,29 @@ export const TransactionForm: React.FC<Props> = ({ type, initialData, onSave, on
     setCategories(getCategories());
   }, []);
 
-  // Update form if initialData changes (e.g. triggered by Record Payment button)
+  // Handle Editing State Population
   useEffect(() => {
-    if (initialData) {
+    if (editingTransaction) {
+      setAmount(editingTransaction.amount.toString());
+      setCategory(editingTransaction.category);
+      setPaymentMode(editingTransaction.paymentMode || 'UPI');
+      setDate(editingTransaction.date);
+      setNote(editingTransaction.note || '');
+      setLinkedTransactionId(editingTransaction.linkedTransactionId || '');
+
+      if (editingTransaction.investorDetails) {
+        setInvestorName(editingTransaction.investorDetails.investorName);
+        setRoi(editingTransaction.investorDetails.roi.toString());
+        setReturnPeriod(editingTransaction.investorDetails.returnPeriod);
+        setDuration(editingTransaction.investorDetails.durationMonths.toString());
+        setPurpose(editingTransaction.investorDetails.purpose || '');
+      }
+    } else if (initialData) {
       if (initialData.amount) setAmount(initialData.amount.toString());
       if (initialData.category) setCategory(initialData.category);
       if (initialData.note) setNote(initialData.note);
     }
-  }, [initialData]);
+  }, [editingTransaction, initialData]);
 
   const isInvestorFund = category === 'Investor Funds';
 
@@ -74,6 +96,29 @@ export const TransactionForm: React.FC<Props> = ({ type, initialData, onSave, on
     const systemCategories = ["Investor Funds", "Interest Payment", "Principal Return"];
     return investorGroup.items.filter(item => !systemCategories.includes(item));
   }, [categories]);
+
+  // Fetch loans when category matches an investor (for Expenses)
+  useEffect(() => {
+     if (type === TransactionType.EXPENSE && userId && category) {
+        // Check if category is in Investor Payments group and is not the generic 'Investor Funds' (which is for income)
+        const invGroup = categories.find(c => c.group === 'Investor Payments');
+        if (invGroup && invGroup.items.includes(category) && category !== 'Investor Funds') {
+            // This category implies a payment to an investor (e.g. "John Doe")
+            const allTx = getTransactions(userId);
+            // Find income transactions where the investor name matches the current category
+            const loans = allTx.filter(t => 
+                t.type === TransactionType.INCOME && 
+                t.investorDetails?.investorName === category
+            ).sort((a,b) => b.timestamp - a.timestamp);
+            
+            setAvailableLoans(loans);
+        } else {
+            setAvailableLoans([]);
+        }
+     } else {
+         setAvailableLoans([]);
+     }
+  }, [category, type, userId, categories]);
 
   // Robust Maturity Date Calculation
   const maturityDate = useMemo(() => {
@@ -143,7 +188,8 @@ export const TransactionForm: React.FC<Props> = ({ type, initialData, onSave, on
       paymentMode,
       date,
       note,
-      investorDetails
+      investorDetails,
+      linkedTransactionId: linkedTransactionId || undefined
     });
   };
 
@@ -154,7 +200,9 @@ export const TransactionForm: React.FC<Props> = ({ type, initialData, onSave, on
           <ArrowLeft className="w-5 h-5 text-slate-600" />
         </button>
         <h2 className="text-xl font-bold text-slate-800">
-          {type === TransactionType.INCOME ? 'Add Income' : 'Add Expense'}
+          {editingTransaction 
+             ? 'Edit Transaction' 
+             : (type === TransactionType.INCOME ? 'Add Income' : 'Add Expense')}
         </h2>
       </div>
 
@@ -165,7 +213,7 @@ export const TransactionForm: React.FC<Props> = ({ type, initialData, onSave, on
           <label className="text-sm font-semibold text-slate-600 ml-1">Amount</label>
           <div className="relative">
             <input
-              autoFocus
+              autoFocus={!editingTransaction}
               type="number"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
@@ -196,6 +244,31 @@ export const TransactionForm: React.FC<Props> = ({ type, initialData, onSave, on
             ))}
           </select>
         </div>
+
+        {/* Loan Linking Dropdown (Conditional) */}
+        {availableLoans.length > 0 && (
+          <div className="space-y-1 animate-in fade-in slide-in-from-top-2">
+            <div className="flex items-center ml-1 mb-1">
+               <label className="text-sm font-semibold text-slate-600">Link to Original Loan</label>
+               <InfoTooltip text="Select which specific loan/investment this payment is for." />
+            </div>
+            <div className="relative">
+              <select
+                value={linkedTransactionId}
+                onChange={(e) => setLinkedTransactionId(e.target.value)}
+                className="w-full p-4 pl-12 rounded-xl border border-blue-200 bg-blue-50 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm appearance-none text-blue-900 font-medium"
+              >
+                <option value="">-- General Payment (No specific link) --</option>
+                {availableLoans.map(loan => (
+                  <option key={loan.id} value={loan.id}>
+                    {new Date(loan.date).toLocaleDateString()} - {loan.amount.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })} {loan.investorDetails?.purpose ? `(${loan.investorDetails.purpose})` : ''}
+                  </option>
+                ))}
+              </select>
+              <Link className="absolute left-4 top-4 w-5 h-5 text-blue-500 pointer-events-none" />
+            </div>
+          </div>
+        )}
 
         {/* Investor Fund Details Section */}
         {isInvestorFund && (
@@ -401,7 +474,7 @@ export const TransactionForm: React.FC<Props> = ({ type, initialData, onSave, on
           variant={type === TransactionType.INCOME ? 'income' : 'expense'}
           className="mt-6"
         >
-          Save Transaction
+          {editingTransaction ? 'Update Transaction' : 'Save Transaction'}
         </Button>
       </form>
     </div>

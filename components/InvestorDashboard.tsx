@@ -1,17 +1,19 @@
 
 import React, { useState, useMemo } from 'react';
 import { Transaction, TransactionType } from '../types';
-import { ArrowLeft, User, ChevronRight, TrendingUp, TrendingDown, Coins, Target, CalendarClock, Banknote, PieChart, Activity } from 'lucide-react';
+import { ArrowLeft, User, ChevronRight, TrendingUp, TrendingDown, Coins, Target, CalendarClock, Banknote, PieChart, Activity, Pencil, Scale, Link as LinkIcon } from 'lucide-react';
 
 interface Props {
   transactions: Transaction[];
   onBack: () => void;
   onRecordPayment: (investorName: string) => void;
+  onEditTransaction: (transaction: Transaction) => void;
 }
 
 interface VirtualTransaction extends Transaction {
   isVirtual?: boolean;
   relatedTransactionId?: string;
+  runningBalance?: number;
 }
 
 interface InvestorAccount {
@@ -22,7 +24,7 @@ interface InvestorAccount {
   transactions: VirtualTransaction[];
 }
 
-export const InvestorDashboard: React.FC<Props> = ({ transactions, onBack, onRecordPayment }) => {
+export const InvestorDashboard: React.FC<Props> = ({ transactions, onBack, onRecordPayment, onEditTransaction }) => {
   const [selectedInvestor, setSelectedInvestor] = useState<InvestorAccount | null>(null);
 
   // Helper to generate interest entries based on time passed
@@ -193,8 +195,27 @@ export const InvestorDashboard: React.FC<Props> = ({ transactions, onBack, onRec
   };
 
   if (selectedInvestor) {
-    // Re-sort transactions including virtual ones
-    const sortedTransactions = [...selectedInvestor.transactions].sort((a,b) => b.timestamp - a.timestamp);
+    // 1. Calculate Running Balance Chronologically
+    const chronTransactions = [...selectedInvestor.transactions].sort((a, b) => a.timestamp - b.timestamp);
+    let runningLiability = 0;
+    
+    const transactionsWithBalance = chronTransactions.map(t => {
+       if (t.type === TransactionType.INCOME) {
+          // Principal Received: Increases Liability
+          runningLiability += t.amount;
+       } else if (t.isVirtual) {
+          // Interest Due: Increases Liability
+          runningLiability += t.amount;
+       } else {
+          // Payment Made: Decreases Liability
+          runningLiability -= t.amount;
+       }
+       return { ...t, runningBalance: runningLiability };
+    });
+
+    // 2. Sort Descending for Display (Newest First)
+    const displayTransactions = transactionsWithBalance.sort((a, b) => b.timestamp - a.timestamp);
+    
     const netBalance = (selectedInvestor.totalPrincipal + selectedInvestor.totalInterestAccrued) - selectedInvestor.totalPaid;
 
     return (
@@ -241,7 +262,7 @@ export const InvestorDashboard: React.FC<Props> = ({ transactions, onBack, onRec
              <div className="pt-2">
                  <button
                    onClick={() => onRecordPayment(selectedInvestor.name)}
-                   className="w-full py-3 bg-white border-2 border-emerald-100 text-emerald-700 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-emerald-50 active:scale-95 transition-all shadow-sm"
+                   className="w-full py-3 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100 text-emerald-700 font-bold rounded-xl flex items-center justify-center gap-2 hover:from-emerald-100 hover:to-teal-100 active:scale-95 transition-all shadow-sm"
                  >
                    <Banknote className="w-5 h-5" />
                    Record Interest Payment
@@ -250,14 +271,25 @@ export const InvestorDashboard: React.FC<Props> = ({ transactions, onBack, onRec
           </div>
 
           <h3 className="font-bold text-slate-700 mt-2 px-1 flex items-center gap-2">
-             Passbook <span className="text-xs font-normal text-slate-400">(Includes Interest Due)</span>
+             Passbook <span className="text-xs font-normal text-slate-400">(Detailed Ledger)</span>
           </h3>
           
           <div className="space-y-3 pb-20">
-            {sortedTransactions.map(t => (
+            {displayTransactions.map(t => {
+              // Find linked details if any
+              let linkedDetails = '';
+              if (t.linkedTransactionId) {
+                  const linked = selectedInvestor.transactions.find(vt => vt.id === t.linkedTransactionId);
+                  if (linked) {
+                      linkedDetails = `${new Date(linked.date).toLocaleDateString()} (${formatCurrency(linked.amount)})`;
+                      if (linked.investorDetails?.purpose) linkedDetails += ` - ${linked.investorDetails.purpose}`;
+                  }
+              }
+
+              return (
               <div 
                 key={t.id} 
-                className={`p-4 rounded-xl border shadow-sm relative overflow-hidden ${
+                className={`p-4 rounded-xl border shadow-sm relative overflow-hidden group ${
                     t.isVirtual 
                     ? 'bg-amber-50/50 border-amber-100' 
                     : 'bg-white border-slate-100'
@@ -273,7 +305,7 @@ export const InvestorDashboard: React.FC<Props> = ({ transactions, onBack, onRec
                 <div className="flex justify-between items-start mb-2">
                    <div>
                       <span className="text-xs font-bold text-slate-400 block mb-0.5">
-                        {new Date(t.date).toLocaleDateString()}
+                        {new Date(t.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                       </span>
                       
                       {t.isVirtual ? (
@@ -290,20 +322,32 @@ export const InvestorDashboard: React.FC<Props> = ({ transactions, onBack, onRec
                          </span>
                       )}
                    </div>
-                   <span className={`font-bold ${
-                       t.isVirtual 
-                       ? 'text-amber-700' 
-                       : t.type === TransactionType.INCOME ? 'text-slate-800' : 'text-emerald-600'
-                   }`}>
-                      {t.isVirtual ? '+' : ''}{formatCurrency(t.amount)}
-                   </span>
+                   <div className="flex flex-col items-end gap-1">
+                     <span className={`font-bold ${
+                         t.isVirtual 
+                         ? 'text-amber-700' 
+                         : t.type === TransactionType.INCOME ? 'text-slate-800' : 'text-emerald-600'
+                     }`}>
+                        {t.isVirtual ? '+' : t.type === TransactionType.INCOME ? '+' : '-'}{formatCurrency(t.amount)}
+                     </span>
+                     {!t.isVirtual && (
+                       <button 
+                          onClick={() => onEditTransaction(t)}
+                          className="p-1 rounded bg-slate-50 text-slate-400 hover:text-blue-600 transition-colors opacity-100 md:opacity-0 group-hover:opacity-100"
+                       >
+                         <Pencil className="w-3 h-3" />
+                       </button>
+                     )}
+                   </div>
                 </div>
 
                 {/* Investment Details on Income Transaction */}
                 {!t.isVirtual && t.investorDetails && t.type === TransactionType.INCOME && (
                    <div className="text-xs bg-slate-50 p-2 rounded text-slate-600 mt-2 space-y-1">
-                      <p><span className="font-semibold">Rate:</span> {t.investorDetails.roi}%</p>
-                      <p><span className="font-semibold">Plan:</span> {t.investorDetails.returnPeriod}</p>
+                      <div className="flex justify-between">
+                         <p><span className="font-semibold">Rate:</span> {t.investorDetails.roi}%</p>
+                         <p><span className="font-semibold">Plan:</span> {t.investorDetails.returnPeriod}</p>
+                      </div>
                       {t.investorDetails.purpose && (
                         <p className="flex items-center gap-1"><Target className="w-3 h-3"/> {t.investorDetails.purpose}</p>
                       )}
@@ -311,12 +355,31 @@ export const InvestorDashboard: React.FC<Props> = ({ transactions, onBack, onRec
                 )}
                 
                 {t.note && (
-                   <div className="text-xs text-slate-400 italic mt-2">
+                   <div className="text-xs text-slate-400 italic mt-1">
                      "{t.note}"
                    </div>
                 )}
+
+                {/* Linked Transaction Info */}
+                {t.linkedTransactionId && (
+                    <div className="mt-2 text-[10px] text-blue-600 bg-blue-50 px-2 py-1 rounded flex items-center gap-1 w-fit border border-blue-100">
+                        <LinkIcon className="w-3 h-3" />
+                        <span>Paid for: <b>{linkedDetails || 'Original Loan'}</b></span>
+                    </div>
+                )}
+
+                {/* Running Balance Row */}
+                <div className="mt-3 pt-2 border-t border-black/5 flex justify-between items-center text-xs">
+                    <span className="font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1">
+                       <Scale className="w-3 h-3" /> Balance
+                    </span>
+                    <span className={`font-bold ${t.runningBalance! > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                        {formatCurrency(t.runningBalance!)}
+                    </span>
+                </div>
               </div>
-            ))}
+            );
+          })}
           </div>
         </div>
       </div>

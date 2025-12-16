@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, Transaction, AppView, TransactionType, InvestorDetails } from './types';
-import { getTransactions, addTransaction, deleteTransaction, ensureInvestorCategory } from './services/storageService';
+import { getTransactions, addTransaction, updateTransaction, ensureInvestorCategory } from './services/storageService';
 import { UserSelection } from './components/UserSelection';
 import { Dashboard } from './components/Dashboard';
 import { TransactionForm } from './components/TransactionForm';
@@ -17,9 +17,12 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>(AppView.AUTH);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   
-  // Specific state for the Add Transaction flow to know which type we are adding
+  // State for Add Transaction flow
   const [txTypeToAdd, setTxTypeToAdd] = useState<TransactionType>(TransactionType.EXPENSE);
   const [txPreFill, setTxPreFill] = useState<{ category?: string, note?: string } | undefined>(undefined);
+  
+  // State for Editing Transaction
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | undefined>(undefined);
 
   useEffect(() => {
     if (currentUser) {
@@ -51,22 +54,40 @@ const App: React.FC = () => {
     date: string; 
     note: string;
     investorDetails?: InvestorDetails;
+    linkedTransactionId?: string;
   }) => {
     if (!currentUser) return;
-    addTransaction({
-      userId: currentUser.id,
-      type: txTypeToAdd,
-      ...data
-    });
+
+    if (editingTransaction) {
+      updateTransaction({
+        ...editingTransaction, // Keep original ID and timestamp
+        ...data // Overwrite editable fields
+      });
+      setEditingTransaction(undefined);
+    } else {
+      addTransaction({
+        userId: currentUser.id,
+        type: txTypeToAdd,
+        ...data
+      });
+    }
+
     refreshTransactions();
     setTxPreFill(undefined);
     setCurrentView(AppView.DASHBOARD);
+  };
+
+  const handleEditTransaction = (transaction: Transaction) => {
+    setEditingTransaction(transaction);
+    setTxTypeToAdd(transaction.type);
+    setCurrentView(AppView.ADD_TRANSACTION);
   };
 
   const handleRecordPayment = (investorName: string) => {
     ensureInvestorCategory(investorName);
     setTxTypeToAdd(TransactionType.EXPENSE);
     setTxPreFill({ category: investorName, note: 'Interest Payment' });
+    setEditingTransaction(undefined);
     setCurrentView(AppView.ADD_TRANSACTION);
   };
 
@@ -79,11 +100,14 @@ const App: React.FC = () => {
       case AppView.ADD_TRANSACTION:
         return (
           <TransactionForm 
+            userId={currentUser?.id || ''}
             type={txTypeToAdd}
             initialData={txPreFill}
+            editingTransaction={editingTransaction}
             onSave={handleSaveTransaction}
             onCancel={() => {
               setTxPreFill(undefined);
+              setEditingTransaction(undefined);
               setCurrentView(AppView.DASHBOARD);
             }}
           />
@@ -94,6 +118,7 @@ const App: React.FC = () => {
           <ReportView 
             transactions={transactions} 
             onBack={() => setCurrentView(AppView.DASHBOARD)}
+            onEditTransaction={handleEditTransaction}
           />
         );
 
@@ -125,6 +150,7 @@ const App: React.FC = () => {
             transactions={transactions}
             onBack={() => setCurrentView(AppView.DASHBOARD)}
             onRecordPayment={handleRecordPayment}
+            onEditTransaction={handleEditTransaction}
           />
         );
 
@@ -136,16 +162,19 @@ const App: React.FC = () => {
             onAddIncome={() => {
               setTxTypeToAdd(TransactionType.INCOME);
               setTxPreFill(undefined);
+              setEditingTransaction(undefined);
               setCurrentView(AppView.ADD_TRANSACTION);
             }}
             onAddExpense={() => {
               setTxTypeToAdd(TransactionType.EXPENSE);
               setTxPreFill(undefined);
+              setEditingTransaction(undefined);
               setCurrentView(AppView.ADD_TRANSACTION);
             }}
             onOpenSettings={() => setCurrentView(AppView.SETTINGS)}
             onViewMaturities={() => setCurrentView(AppView.MATURITIES)}
             onViewInvestors={() => setCurrentView(AppView.INVESTOR_DASHBOARD)}
+            onEditTransaction={handleEditTransaction}
           />
         );
     }

@@ -1,7 +1,7 @@
 
 import React, { useMemo } from 'react';
 import { Transaction, TransactionType } from '../types';
-import { ArrowUpCircle, ArrowDownCircle, Wallet, Settings, CalendarClock, AlertCircle, Users, BellRing } from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, Wallet, Settings, CalendarClock, AlertCircle, Users, BellRing, Pencil } from 'lucide-react';
 
 interface Props {
   transactions: Transaction[];
@@ -10,9 +10,10 @@ interface Props {
   onOpenSettings: () => void;
   onViewMaturities: () => void;
   onViewInvestors: () => void;
+  onEditTransaction: (transaction: Transaction) => void;
 }
 
-export const Dashboard: React.FC<Props> = ({ transactions, onAddIncome, onAddExpense, onOpenSettings, onViewMaturities, onViewInvestors }) => {
+export const Dashboard: React.FC<Props> = ({ transactions, onAddIncome, onAddExpense, onOpenSettings, onViewMaturities, onViewInvestors, onEditTransaction }) => {
   const totals = useMemo(() => {
     return transactions.reduce((acc, t) => {
       if (t.type === TransactionType.INCOME) acc.income += t.amount;
@@ -259,7 +260,7 @@ export const Dashboard: React.FC<Props> = ({ transactions, onAddIncome, onAddExp
         ) : (
           <div className="space-y-3">
             {recentTransactions.map(t => (
-              <div key={t.id} className="bg-white p-4 rounded-xl border border-slate-100 flex items-center justify-between shadow-sm">
+              <div key={t.id} className="bg-white p-4 rounded-xl border border-slate-100 flex items-center justify-between shadow-sm group">
                 <div className="flex flex-col">
                   <span className="font-semibold text-slate-800">{t.category}</span>
                   <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
@@ -277,9 +278,17 @@ export const Dashboard: React.FC<Props> = ({ transactions, onAddIncome, onAddExp
                     </span>
                   )}
                 </div>
-                <span className={`font-bold ${t.type === TransactionType.INCOME ? 'text-emerald-600' : 'text-rose-600'}`}>
-                  {t.type === TransactionType.INCOME ? '+' : '-'}{t.amount.toLocaleString('en-IN')}
-                </span>
+                <div className="flex flex-col items-end gap-2">
+                    <span className={`font-bold ${t.type === TransactionType.INCOME ? 'text-emerald-600' : 'text-rose-600'}`}>
+                      {t.type === TransactionType.INCOME ? '+' : '-'}{t.amount.toLocaleString('en-IN')}
+                    </span>
+                    <button 
+                      onClick={() => onEditTransaction(t)}
+                      className="p-1.5 rounded-full bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors opacity-100 md:opacity-0 group-hover:opacity-100"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                </div>
               </div>
             ))}
           </div>

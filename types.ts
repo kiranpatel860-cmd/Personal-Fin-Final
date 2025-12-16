@@ -25,6 +25,7 @@ export interface Transaction {
   note?: string;
   timestamp: number;
   investorDetails?: InvestorDetails;
+  linkedTransactionId?: string;
 }
 
 export interface User {

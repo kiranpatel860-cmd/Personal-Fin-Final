@@ -44,6 +44,18 @@ export const addTransaction = (transaction: Omit<Transaction, 'id' | 'timestamp'
   return newTx;
 };
 
+export const updateTransaction = (updatedTx: Transaction): void => {
+  const allTx = localStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
+  if (!allTx) return;
+  const parsed: Transaction[] = JSON.parse(allTx);
+  
+  const index = parsed.findIndex(t => t.id === updatedTx.id);
+  if (index !== -1) {
+    parsed[index] = updatedTx;
+    localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(parsed));
+  }
+};
+
 export const deleteTransaction = (id: string): void => {
   const allTx = localStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
   if (!allTx) return;
